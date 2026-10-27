@@ -3,6 +3,7 @@
   if (window.__pkLoaded) return;
   window.__pkLoaded = true;
   var START = '2026-10-27', OWNER = 'peeksxx', REPO = 'upptime', DAYS = 90, INC_DAYS = 7;
+  var TITLE = document.title || 'Status';
   var META = {
     'video': {n: 'video.peeksxx.dev'},
     'e6-scroller': {n: 'e6Scroller', sub: 'e6scroller.net', construction: true}
@@ -46,7 +47,7 @@
     var el = document.createElement('div');
     el.id = 'pk';
     var hidden = {};
-    var h = '<h1>Peeksxx Status</h1><div class="sub">Uptime over the past ' + DAYS + ' days. <a href="https://github.com/' + OWNER + '/' + REPO + '">View historical uptime.</a></div><div class="card">';
+    var h = '<h1>' + esc(TITLE) + '</h1><div class="sub">Uptime over the past ' + DAYS + ' days. <a href="https://github.com/' + OWNER + '/' + REPO + '">View historical uptime.</a></div><div class="card">';
     sites.forEach(function (s) {
       var m0 = META[s.slug] || {};
       if (m0.construction) hidden[s.slug] = true;

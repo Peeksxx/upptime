@@ -9,8 +9,8 @@
   var REPO = 'upptime';
   var MONITORING_START = '2026-10-27';
   var INCIDENT_DAYS = 7;
-  var DAY_STEPS = [90, 60, 30];
-  var BAR_MIN_WIDTH = 6;
+  var TOTAL_DAYS = 90;
+  var MIN_BAR_WIDTH = 7;
   var BAR_GAP = 2;
   var PAGE_TITLE = document.title || 'Status';
 
@@ -44,8 +44,8 @@
     '#pk .name{font-size:18px;color:#222}',
     '#pk .name small{font-size:14px;color:#a9a8a2;margin-left:8px}',
     '#pk .state{font-size:16px}',
-    '#pk .bars{display:flex;gap:' + BAR_GAP + 'px;height:50px}',
-    '#pk .bars i{flex:1 1 0;min-width:' + BAR_MIN_WIDTH + 'px;border-radius:1px}',
+    '#pk .bars{display:flex;height:50px;overflow:hidden}',
+    '#pk .bars i{flex:none;height:100%;border-radius:1px}',
     '#pk .foot{display:flex;align-items:center;gap:14px;color:#8a8a85;margin-top:10px;font-size:15px}',
     '#pk .foot b{flex:1;height:1px;background:#8a8a85;opacity:.5}',
     '#pk .foot span{white-space:nowrap}',
@@ -74,7 +74,11 @@
     '}'
   ].join('');
 
-  var state = { sites: [], issues: [], days: DAY_STEPS[0] };
+  var state = {
+    sites: [],
+    issues: [],
+    layout: { ratio: 1, step: 1, count: TOTAL_DAYS, bar: MIN_BAR_WIDTH, gap: BAR_GAP, extra: 0 }
+  };
   var resizeTimer = null;
 
   function escapeHtml(value) {
@@ -106,31 +110,89 @@
     return COLORS.down;
   }
 
-  function buildBars(site, meta) {
-    var markup = '';
-    for (var daysAgo = state.days - 1; daysAgo >= 0; daysAgo--) {
+  function computeLayout(containerWidth) {
+    var ratio = window.devicePixelRatio || 1;
+    var width = Math.floor(containerWidth * ratio);
+    var gap = Math.max(1, Math.round(BAR_GAP * ratio));
+    var minBar = Math.max(2, Math.round(MIN_BAR_WIDTH * ratio));
+    var step = 1;
+
+    while (step < TOTAL_DAYS) {
+      var fits = Math.ceil(TOTAL_DAYS / step);
+      if (fits * minBar + (fits - 1) * gap <= width) break;
+      step++;
+    }
+
+    var count = Math.ceil(TOTAL_DAYS / step);
+    var bar = Math.floor((width - (count - 1) * gap) / count);
+    var extra = width - count * bar - (count - 1) * gap;
+    return { ratio: ratio, step: step, count: count, bar: bar, gap: gap, extra: extra };
+  }
+
+  function layoutKey(layout) {
+    return [layout.ratio, layout.step, layout.count, layout.bar, layout.gap, layout.extra].join('|');
+  }
+
+  function toCssPixels(deviceUnits) {
+    return (deviceUnits / state.layout.ratio).toFixed(4) + 'px';
+  }
+
+  function gapBefore(index) {
+    var layout = state.layout;
+    if (index === 0) return 0;
+    var spans = layout.count - 1;
+    var surplus = Math.floor(index * layout.extra / spans) - Math.floor((index - 1) * layout.extra / spans);
+    return layout.gap + surplus;
+  }
+
+  function summarizeRange(site, newestDaysAgo, oldestDaysAgo) {
+    var summary = { monitored: false, total: 0, worst: 0 };
+    for (var daysAgo = oldestDaysAgo; daysAgo >= newestDaysAgo; daysAgo--) {
       var date = utcDate(daysAgo);
-      var color;
-      var label;
-      if (date < MONITORING_START) {
-        color = COLORS.empty;
-        label = date + ': no data';
-      } else if (meta.underConstruction) {
-        color = COLORS.empty;
-        label = date + ': under construction';
-      } else {
-        var minutes = (site.dailyMinutesDown || {})[date] || 0;
-        color = colorForDowntime(minutes);
-        label = date + (minutes ? ': ' + minutes + ' min down' : ': no downtime');
-        if (daysAgo === 0 && site.status === 'down') {
-          color = COLORS.down;
-          label = date + ': down';
-        } else if (daysAgo === 0 && site.status === 'degraded') {
-          color = COLORS.degraded;
-          label = date + ': degraded';
-        }
+      if (date < MONITORING_START) continue;
+      var minutes = (site.dailyMinutesDown || {})[date] || 0;
+      summary.monitored = true;
+      summary.total += minutes;
+      summary.worst = Math.max(summary.worst, minutes);
+    }
+    return summary;
+  }
+
+  function buildBar(site, meta, newestDaysAgo, oldestDaysAgo, index) {
+    var first = utcDate(oldestDaysAgo);
+    var last = utcDate(newestDaysAgo);
+    var range = first === last ? first : first + ' to ' + last;
+    var summary = summarizeRange(site, newestDaysAgo, oldestDaysAgo);
+    var color = COLORS.empty;
+    var label = range + ': no data';
+
+    if (summary.monitored && meta.underConstruction) {
+      label = range + ': under construction';
+    } else if (summary.monitored) {
+      color = colorForDowntime(summary.worst);
+      label = range + (summary.total ? ': ' + summary.total + ' min down' : ': no downtime');
+      if (newestDaysAgo === 0 && site.status === 'down') {
+        color = COLORS.down;
+        label = range + ': down';
+      } else if (newestDaysAgo === 0 && site.status === 'degraded') {
+        color = COLORS.degraded;
+        label = range + ': degraded';
       }
-      markup += '<i style="background:' + color + '" title="' + label + '"></i>';
+    }
+
+    var style = 'background:' + color +
+      ';width:' + toCssPixels(state.layout.bar) +
+      ';margin-left:' + toCssPixels(gapBefore(index));
+    return '<i style="' + style + '" title="' + label + '"></i>';
+  }
+
+  function buildBars(site, meta) {
+    var layout = state.layout;
+    var markup = '';
+    for (var index = 0; index < layout.count; index++) {
+      var newest = (layout.count - 1 - index) * layout.step;
+      var oldest = Math.min(newest + layout.step - 1, TOTAL_DAYS - 1);
+      markup += buildBar(site, meta, newest, oldest, index);
     }
     return markup;
   }
@@ -157,7 +219,7 @@
       '</div>' +
       '<div class="bars">' + buildBars(site, meta) + '</div>' +
       '<div class="foot">' +
-      '<span>' + state.days + ' days ago</span><b></b>' +
+      '<span>' + TOTAL_DAYS + ' days ago</span><b></b>' +
       '<span>' + summary + '</span><b></b>' +
       '<span>Today</span>' +
       '</div>' +
@@ -166,7 +228,7 @@
 
   function buildHeader() {
     return '<h1>' + escapeHtml(PAGE_TITLE) + '</h1>' +
-      '<div class="sub">Uptime over the past ' + state.days + ' days. ' +
+      '<div class="sub">Uptime over the past ' + TOTAL_DAYS + ' days. ' +
       '<a href="https://github.com/' + OWNER + '/' + REPO + '">View historical uptime.</a></div>';
   }
 
@@ -243,20 +305,14 @@
       '<div class="card padded"><div class="none">Status data is temporarily unavailable.</div></div>';
   }
 
-  function daysThatFit() {
-    var bars = document.querySelector('#pk .bars');
-    if (!bars) return state.days;
-    var slots = Math.floor((bars.clientWidth + BAR_GAP) / (BAR_MIN_WIDTH + BAR_GAP));
-    for (var i = 0; i < DAY_STEPS.length; i++) {
-      if (slots >= DAY_STEPS[i]) return DAY_STEPS[i];
-    }
-    return DAY_STEPS[DAY_STEPS.length - 1];
-  }
-
   function adjustToViewport() {
-    var days = daysThatFit();
-    if (days === state.days) return;
-    state.days = days;
+    var bars = document.querySelector('#pk .bars');
+    if (!bars) return;
+    var width = bars.getBoundingClientRect().width;
+    if (width <= 0) return;
+    var next = computeLayout(width);
+    if (layoutKey(next) === layoutKey(state.layout)) return;
+    state.layout = next;
     render();
   }
 

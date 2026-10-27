@@ -4,4 +4,4 @@ assignees: [peeksxx]
 sites:
 - {name: Video, url: "https://video.peeksxx.dev"}
 - {name: e6Scroller, url: "https://e6scroller.net"}
-status-website: {cname: status.peeksxx.dev, name: Peeksxx Status, introTitle: "Peeksxx service status"}
+status-website: {cname: status.peeksxx.dev, name: Peeksxx Status, introTitle: "Peeksxx service status", scripts: [{src: "https://cdn.jsdelivr.net/gh/peeksxx/upptime@3514e8e760f3d1a5ab2deda48e1e5aa9758d83ee/assets/minimal.js"}]}

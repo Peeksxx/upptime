@@ -4,18 +4,20 @@
     "url": "https://video.peeksxx.dev",
     "icon": "https://icons.duckduckgo.com/ip3/video.peeksxx.dev.ico",
     "slug": "video",
-    "status": "up",
+    "status": "down",
     "uptime": "100.00%",
-    "uptimeDay": "100.00%",
+    "uptimeDay": "99.97%",
     "uptimeWeek": "100.00%",
     "uptimeMonth": "100.00%",
     "uptimeYear": "100.00%",
-    "time": 295,
-    "timeDay": 468,
-    "timeWeek": 297,
-    "timeMonth": 295,
-    "timeYear": 295,
-    "dailyMinutesDown": {}
+    "time": 278,
+    "timeDay": 264,
+    "timeWeek": 268,
+    "timeMonth": 278,
+    "timeYear": 278,
+    "dailyMinutesDown": {
+      "2026-11-04": 0
+    }
   },
   {
     "name": "e6Scroller",
@@ -34,7 +36,7 @@
     "timeMonth": 0,
     "timeYear": 0,
     "dailyMinutesDown": {
-      "2026-11-04": 328,
+      "2026-11-04": 1318,
       "2026-11-03": 1440,
       "2026-11-02": 1440,
       "2026-11-01": 1440,
